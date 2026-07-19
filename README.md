@@ -10,7 +10,7 @@ resources.
 
 ```hcl
 module "key_vault" {
-  source = "github.com/cybercapybara/terraform-azurerm-key-vault"
+  source = "github.com/moveeeax/terraform-azurerm-key-vault"
 
   name                = "prod-kv-01"
   resource_group_name = "prod-rg"

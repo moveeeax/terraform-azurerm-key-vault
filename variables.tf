@@ -1,6 +1,14 @@
 variable "name" {
-  description = "Name of the key vault. Must be globally unique, 3-24 alphanumeric characters."
+  description = "Name of the key vault. Must be globally unique, 3-24 characters, alphanumerics and hyphens, starting with a letter and ending with a letter or digit."
   type        = string
+
+  validation {
+    condition = (
+      can(regex("^[a-zA-Z][a-zA-Z0-9-]{1,22}[a-zA-Z0-9]$", var.name))
+      && !can(regex("--", var.name))
+    )
+    error_message = "name must be 3-24 characters, contain only alphanumerics and hyphens, start with a letter, end with a letter or digit, and must not contain consecutive hyphens."
+  }
 }
 
 variable "resource_group_name" {
@@ -23,6 +31,11 @@ variable "sku_name" {
   description = "SKU of the key vault. Either standard or premium."
   type        = string
   default     = "standard"
+
+  validation {
+    condition     = contains(["standard", "premium"], var.sku_name)
+    error_message = "sku_name must be either \"standard\" or \"premium\"."
+  }
 }
 
 variable "enabled_for_disk_encryption" {
@@ -32,19 +45,28 @@ variable "enabled_for_disk_encryption" {
 }
 
 variable "purge_protection_enabled" {
-  description = "Whether purge protection is enabled, preventing permanent deletion during the retention period."
+  description = "Whether purge protection is enabled, preventing permanent deletion of the vault and its keys, secrets and certificates during the soft-delete retention period. Defaults to true. Note that Azure does not allow purge protection to be turned off again once it has been enabled on a vault."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "soft_delete_retention_days" {
   description = "Number of days soft-deleted vault items are retained, between 7 and 90."
   type        = number
   default     = 90
+
+  validation {
+    condition = (
+      var.soft_delete_retention_days >= 7
+      && var.soft_delete_retention_days <= 90
+      && floor(var.soft_delete_retention_days) == var.soft_delete_retention_days
+    )
+    error_message = "soft_delete_retention_days must be a whole number between 7 and 90."
+  }
 }
 
 variable "public_network_access_enabled" {
-  description = "Whether the key vault is reachable over the public internet."
+  description = "Whether the key vault endpoint is reachable over the public internet. Even when true, the network_acls_default_action setting still governs which callers are actually allowed through."
   type        = bool
   default     = true
 }
@@ -59,12 +81,34 @@ variable "network_acls_bypass" {
   description = "Which traffic bypasses the network ACLs. Either AzureServices or None."
   type        = string
   default     = "AzureServices"
+
+  validation {
+    condition     = contains(["AzureServices", "None"], var.network_acls_bypass)
+    error_message = "network_acls_bypass must be either \"AzureServices\" or \"None\"."
+  }
 }
 
 variable "network_acls_default_action" {
-  description = "Default action when no network ACL rule matches. Either Allow or Deny."
+  description = "Default action when no network ACL rule matches. Either Allow or Deny. Defaults to Deny; grant access explicitly with network_acls_ip_rules and network_acls_virtual_network_subnet_ids."
   type        = string
-  default     = "Allow"
+  default     = "Deny"
+
+  validation {
+    condition     = contains(["Allow", "Deny"], var.network_acls_default_action)
+    error_message = "network_acls_default_action must be either \"Allow\" or \"Deny\"."
+  }
+}
+
+variable "network_acls_ip_rules" {
+  description = "Public IPv4 addresses or CIDR ranges allowed to reach the vault when network_acls_default_action is Deny."
+  type        = list(string)
+  default     = []
+}
+
+variable "network_acls_virtual_network_subnet_ids" {
+  description = "IDs of subnets allowed to reach the vault when network_acls_default_action is Deny. The subnets need the Microsoft.KeyVault service endpoint enabled."
+  type        = list(string)
+  default     = []
 }
 
 variable "tags" {

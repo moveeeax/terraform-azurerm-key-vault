@@ -4,7 +4,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.0"
+      version = ">= 3.19, < 5.0"
     }
   }
 }
@@ -20,8 +20,12 @@ module "key_vault" {
   resource_group_name = "example-rg"
   location            = "eastus"
 
-  sku_name                 = "standard"
-  purge_protection_enabled = true
+  sku_name = "standard"
+
+  # The module denies network access by default, so callers have to be listed
+  # explicitly. Replace this with the public egress range you administer the
+  # vault from, or use network_acls_virtual_network_subnet_ids instead.
+  network_acls_ip_rules = ["203.0.113.0/24"]
 
   tags = {
     Environment = "sandbox"

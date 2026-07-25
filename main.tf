@@ -14,8 +14,10 @@ resource "azurerm_key_vault" "this" {
   enable_rbac_authorization     = var.enable_rbac_authorization
 
   network_acls {
-    bypass         = var.network_acls_bypass
-    default_action = var.network_acls_default_action
+    bypass                     = var.network_acls_bypass
+    default_action             = var.network_acls_default_action
+    ip_rules                   = var.network_acls_ip_rules
+    virtual_network_subnet_ids = var.network_acls_virtual_network_subnet_ids
   }
 
   tags = var.tags

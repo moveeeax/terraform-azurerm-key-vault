@@ -11,7 +11,7 @@ resource "azurerm_key_vault" "this" {
   purge_protection_enabled      = var.purge_protection_enabled
   soft_delete_retention_days    = var.soft_delete_retention_days
   public_network_access_enabled = var.public_network_access_enabled
-  enable_rbac_authorization     = var.enable_rbac_authorization
+  rbac_authorization_enabled    = var.enable_rbac_authorization
 
   network_acls {
     bypass                     = var.network_acls_bypass

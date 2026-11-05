@@ -28,7 +28,7 @@ state or in a plan by way of this module.
 
 ```hcl
 module "key_vault" {
-  source = "github.com/moveeeax/terraform-azurerm-key-vault"
+  source = "github.com/moveeeax/terraform-azurerm-key-vault?ref=v1.0.0"
 
   name                = "prod-kv-01"
   resource_group_name = "prod-rg"
@@ -53,13 +53,15 @@ A runnable example lives in [`examples/basic`](examples/basic).
 | Name      | Version           |
 |-----------|-------------------|
 | terraform | >= 1.5            |
-| azurerm   | >= 3.19, < 5.0    |
+| azurerm   | >= 4.42.0, < 6.0  |
 
-The azurerm lower bound is not cosmetic: `public_network_access_enabled` was
-added to `azurerm_key_vault` in provider 3.19.0, so the module fails to
-validate against anything older. The upper bound is because
-`enable_rbac_authorization` is deprecated in 4.x and is scheduled for removal
-in azurerm 5.0.
+azurerm 5.0 removed `enable_rbac_authorization` from `azurerm_key_vault` and
+made its replacement, `rbac_authorization_enabled`, required. The module sets
+`rbac_authorization_enabled`, which first appeared in azurerm 4.42.0, so that
+is the floor (v1 of this module supported 3.19 and later). CI validates and
+tests the module against 4.42.0 and the latest 5.x release; 6.x is excluded
+until it has been tested. The module input keeps its name,
+`enable_rbac_authorization`.
 
 ## Inputs
 

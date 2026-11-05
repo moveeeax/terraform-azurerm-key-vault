@@ -43,7 +43,7 @@ run "defaults_are_safe" {
   }
 
   assert {
-    condition     = azurerm_key_vault.this.enable_rbac_authorization == true
+    condition     = azurerm_key_vault.this.rbac_authorization_enabled == true
     error_message = "RBAC authorization must default to true rather than legacy vault access policies."
   }
 

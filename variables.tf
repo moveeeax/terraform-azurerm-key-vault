@@ -154,3 +154,40 @@ variable "role_assignments" {
     error_message = "role_assignments[*].principal_id must be an object ID (GUID)."
   }
 }
+
+variable "private_endpoints" {
+  description = <<-EOT
+    Private endpoints for the vault, keyed by a static name. subnet_id is the
+    subnet the endpoint's network interface is placed in. private_dns_zone_ids
+    (usually the ID of a privatelink.vaultcore.azure.net zone) attaches a DNS
+    zone group so the vault name resolves to the private IP; leave it null if
+    DNS is managed elsewhere, for example by Azure Policy. name defaults to
+    "<vault name>-pe-<key>"; resource_group_name and location default to the
+    vault's (the location must match the subnet's virtual network). Creating
+    an endpoint does not change public_network_access_enabled. Empty (the
+    default) creates no endpoints.
+  EOT
+  type = map(object({
+    subnet_id            = string
+    private_dns_zone_ids = optional(list(string))
+    name                 = optional(string)
+    resource_group_name  = optional(string)
+    location             = optional(string)
+  }))
+  default = {}
+
+  validation {
+    condition     = alltrue([for pe in values(var.private_endpoints) : can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Network/virtualNetworks/[^/]+/subnets/[^/]+$", pe.subnet_id))])
+    error_message = "private_endpoints[*].subnet_id must be a full subnet resource ID (/subscriptions/.../providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>)."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for pe in values(var.private_endpoints) : [
+        for z in coalesce(pe.private_dns_zone_ids, []) :
+        can(regex("(?i)^/subscriptions/[^/]+/resourceGroups/[^/]+/providers/Microsoft\\.Network/privateDnsZones/[^/]+$", z))
+      ]
+    ]))
+    error_message = "private_endpoints[*].private_dns_zone_ids must contain full private DNS zone resource IDs (/subscriptions/.../providers/Microsoft.Network/privateDnsZones/<zone>)."
+  }
+}

@@ -16,6 +16,13 @@ All notable changes to this module are documented here. The format follows
   assignments while `enable_rbac_authorization = false`. New
   `role_assignment_ids` output. Defaults to `{}`, so existing vaults plan
   unchanged.
+- `private_endpoints` input creating `azurerm_private_endpoint` resources for
+  the vault's `vault` sub-resource, with an optional DNS zone group from
+  `private_dns_zone_ids` and optional `name`, `resource_group_name` and
+  `location` overrides. Subnet and DNS zone IDs must be full resource IDs. New
+  `private_endpoints` output with each endpoint's `id` and
+  `private_ip_address`. Defaults to `{}`, and `public_network_access_enabled`
+  is not changed by adding an endpoint, so existing vaults plan unchanged.
 
 ## [1.1.0] - 2026-11-05
 

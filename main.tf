@@ -22,3 +22,23 @@ resource "azurerm_key_vault" "this" {
 
   tags = var.tags
 }
+
+# Data-plane role assignments scoped to this vault. Key Vault data-plane roles
+# only take effect when the vault uses RBAC authorization, so assignments are
+# refused while enable_rbac_authorization is false.
+resource "azurerm_role_assignment" "this" {
+  for_each = var.role_assignments
+
+  scope                = azurerm_key_vault.this.id
+  role_definition_name = each.value.role_definition_name
+  principal_id         = each.value.principal_id
+  principal_type       = each.value.principal_type
+  description          = each.value.description
+
+  lifecycle {
+    precondition {
+      condition     = var.enable_rbac_authorization
+      error_message = "role_assignments requires enable_rbac_authorization = true; Key Vault data-plane roles have no effect on a vault that uses access policies."
+    }
+  }
+}

@@ -116,3 +116,41 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "role_assignments" {
+  description = <<-EOT
+    Azure RBAC role assignments on the vault, keyed by a static name.
+    role_definition_name must be a built-in Key Vault role such as
+    "Key Vault Secrets User", "Key Vault Crypto User" or
+    "Key Vault Administrator". principal_type (User, Group or
+    ServicePrincipal) is optional; setting it avoids a replication race when
+    the principal was created in the same apply. Requires
+    enable_rbac_authorization = true. Empty (the default) creates no
+    assignments.
+  EOT
+  type = map(object({
+    principal_id         = string
+    role_definition_name = string
+    principal_type       = optional(string)
+    description          = optional(string)
+  }))
+  default = {}
+
+  validation {
+    # Keeps the input to data-plane roles: Owner, Contributor or User Access
+    # Administrator on the vault would let the principal change the vault
+    # itself or hand out access, which is not what this input is for.
+    condition     = alltrue([for a in values(var.role_assignments) : can(regex("^Key Vault ", a.role_definition_name))])
+    error_message = "role_assignments[*].role_definition_name must be a Key Vault role, for example \"Key Vault Secrets User\"; general roles such as Owner or Contributor are rejected."
+  }
+
+  validation {
+    condition     = alltrue([for a in values(var.role_assignments) : a.principal_type == null || contains(["User", "Group", "ServicePrincipal"], coalesce(a.principal_type, "User"))])
+    error_message = "role_assignments[*].principal_type must be User, Group or ServicePrincipal."
+  }
+
+  validation {
+    condition     = alltrue([for a in values(var.role_assignments) : can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", a.principal_id))])
+    error_message = "role_assignments[*].principal_id must be an object ID (GUID)."
+  }
+}

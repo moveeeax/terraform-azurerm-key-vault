@@ -24,6 +24,43 @@ This module manages the vault only. It deliberately takes no secret, key or
 certificate **values** as inputs, so there is no input that could end up in
 state or in a plan by way of this module.
 
+## Role assignments
+
+With RBAC authorization (the default) nobody can read a secret until they hold
+a data-plane role on the vault. `role_assignments` creates those assignments,
+scoped to the vault, keyed by static names so principal IDs created in the
+same apply work:
+
+```hcl
+  role_assignments = {
+    app = {
+      principal_id         = azurerm_user_assigned_identity.app.principal_id
+      role_definition_name = "Key Vault Secrets User"
+      principal_type       = "ServicePrincipal"
+    }
+    platform_admins = {
+      principal_id         = "00000000-0000-0000-0000-000000000000" # group object ID
+      role_definition_name = "Key Vault Administrator"
+      principal_type       = "Group"
+    }
+  }
+```
+
+- `role_definition_name` must start with `Key Vault ` (for example
+  `Key Vault Secrets User`, `Key Vault Crypto User`,
+  `Key Vault Certificates Officer`, `Key Vault Administrator`). Owner,
+  Contributor and other general roles are rejected: on the vault scope they
+  manage the vault itself rather than its contents, and grant those outside the
+  module if you need them.
+- `principal_type` is optional. Setting it for an identity created in the same
+  apply avoids failures while Entra ID replication catches up.
+- Key Vault data-plane roles only work on a vault with
+  `enable_rbac_authorization = true`. The module refuses role assignments when
+  it is `false`, and it never changes the authorization mode for you: switching
+  an existing vault to RBAC stops its access policies from being evaluated.
+- Grant the narrowest role that works; `Key Vault Secrets User` is enough for
+  an application that only reads secrets.
+
 ## Usage
 
 ```hcl
@@ -82,6 +119,7 @@ until it has been tested. The module input keeps its name,
 | `network_acls_ip_rules`                   | IPv4 addresses or CIDR ranges allowed to reach the vault.                  | `list(string)`| `[]`               |    no    |
 | `network_acls_virtual_network_subnet_ids` | Subnet IDs allowed to reach the vault.                                     | `list(string)`| `[]`               |    no    |
 | `tags`                                    | Map of tags applied to the key vault.                                      | `map(string)` | `{}`               |    no    |
+| `role_assignments`                        | Key Vault role assignments on the vault: `principal_id`, `role_definition_name`, optional `principal_type` and `description`. Requires RBAC authorization. See [Role assignments](#role-assignments). | `map(object)` | `{}` | no |
 
 ## Outputs
 
@@ -90,6 +128,7 @@ until it has been tested. The module input keeps its name,
 | `id`        | ID of the key vault.                           |
 | `name`      | Name of the key vault.                          |
 | `vault_uri` | URI of the key vault, used for data-plane requests.|
+| `role_assignment_ids` | Map of `role_assignments` key to role assignment ID. |
 
 ## Tests
 

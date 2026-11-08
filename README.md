@@ -16,9 +16,10 @@ downstream secret, key and certificate resources.
 | `enable_rbac_authorization = true` | Azure RBAC rather than legacy vault access policies. This module intentionally manages no `access_policy` blocks; if you set this to `false`, attach `azurerm_key_vault_access_policy` resources yourself. |
 
 `public_network_access_enabled` still defaults to `true`, because turning it off
-requires a private endpoint that this module does not create. The `Deny`
-network ACL is what gates access on the public endpoint. Set it to `false` once
-you have private connectivity in place.
+without private connectivity leaves the vault unreachable. The `Deny` network
+ACL is what gates access on the public endpoint. Set it to `false` once private
+connectivity is in place, for example through the module's `private_endpoints`
+input (see [Private endpoints](#private-endpoints)).
 
 This module manages the vault only. It deliberately takes no secret, key or
 certificate **values** as inputs, so there is no input that could end up in
@@ -60,6 +61,35 @@ same apply work:
   an existing vault to RBAC stops its access policies from being evaluated.
 - Grant the narrowest role that works; `Key Vault Secrets User` is enough for
   an application that only reads secrets.
+
+## Private endpoints
+
+`private_endpoints` creates `azurerm_private_endpoint` resources connected to
+the vault's `vault` sub-resource, keyed by static names:
+
+```hcl
+  private_endpoints = {
+    hub = {
+      subnet_id            = azurerm_subnet.private_endpoints.id
+      private_dns_zone_ids = [azurerm_private_dns_zone.vaultcore.id] # privatelink.vaultcore.azure.net
+    }
+  }
+
+  # Recommended once the endpoint and DNS resolve correctly:
+  public_network_access_enabled = false
+```
+
+- `private_dns_zone_ids` attaches a DNS zone group so the vault's hostname
+  resolves to the endpoint's private IP. Leave it `null` (or `[]`) when DNS
+  records are managed elsewhere, for example by Azure Policy in a hub.
+- `name` defaults to `<vault name>-pe-<key>`. `resource_group_name` and
+  `location` default to the vault's; the endpoint's location has to match the
+  subnet's virtual network, so override it for a network in another region.
+- The module never changes `public_network_access_enabled` because you added an
+  endpoint. Turning public access off is a separate decision; make it after
+  clients resolve and reach the private IP, otherwise they lose access.
+- The `private_endpoints` output exposes each endpoint's `id` and
+  `private_ip_address`.
 
 ## Usage
 
@@ -119,6 +149,7 @@ until it has been tested. The module input keeps its name,
 | `network_acls_ip_rules`                   | IPv4 addresses or CIDR ranges allowed to reach the vault.                  | `list(string)`| `[]`               |    no    |
 | `network_acls_virtual_network_subnet_ids` | Subnet IDs allowed to reach the vault.                                     | `list(string)`| `[]`               |    no    |
 | `tags`                                    | Map of tags applied to the key vault.                                      | `map(string)` | `{}`               |    no    |
+| `private_endpoints`                       | Private endpoints for the vault: `subnet_id`, optional `private_dns_zone_ids`, `name`, `resource_group_name`, `location`. See [Private endpoints](#private-endpoints). | `map(object)` | `{}` | no |
 | `role_assignments`                        | Key Vault role assignments on the vault: `principal_id`, `role_definition_name`, optional `principal_type` and `description`. Requires RBAC authorization. See [Role assignments](#role-assignments). | `map(object)` | `{}` | no |
 
 ## Outputs
@@ -129,6 +160,7 @@ until it has been tested. The module input keeps its name,
 | `name`      | Name of the key vault.                          |
 | `vault_uri` | URI of the key vault, used for data-plane requests.|
 | `role_assignment_ids` | Map of `role_assignments` key to role assignment ID. |
+| `private_endpoints` | Map of `private_endpoints` key to the endpoint's `id` and `private_ip_address`. |
 
 ## Tests
 

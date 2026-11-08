@@ -42,3 +42,33 @@ resource "azurerm_role_assignment" "this" {
     }
   }
 }
+
+# Private endpoints for the vault's "vault" sub-resource. These do not change
+# public_network_access_enabled; turn public access off yourself once private
+# connectivity and DNS resolution work.
+resource "azurerm_private_endpoint" "this" {
+  for_each = var.private_endpoints
+
+  name                = coalesce(each.value.name, "${var.name}-pe-${each.key}")
+  resource_group_name = coalesce(each.value.resource_group_name, var.resource_group_name)
+  location            = coalesce(each.value.location, var.location)
+  subnet_id           = each.value.subnet_id
+
+  private_service_connection {
+    name                           = coalesce(each.value.name, "${var.name}-pe-${each.key}")
+    private_connection_resource_id = azurerm_key_vault.this.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+
+  dynamic "private_dns_zone_group" {
+    for_each = length(coalesce(each.value.private_dns_zone_ids, [])) > 0 ? [1] : []
+
+    content {
+      name                 = "default"
+      private_dns_zone_ids = each.value.private_dns_zone_ids
+    }
+  }
+
+  tags = var.tags
+}
